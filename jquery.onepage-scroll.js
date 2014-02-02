@@ -27,13 +27,13 @@
     afterMove: null,
     loop: false,
     responsiveFallback: false
-	};
-	
-	/*------------------------------------------------*/
-	/*  Credit: Eike Send for the awesome swipe event */    
-	/*------------------------------------------------*/
-	
-	$.fn.swipeEvents = function() {
+        };
+        
+        /*------------------------------------------------*/
+        /*  Credit: Eike Send for the awesome swipe event */    
+        /*------------------------------------------------*/
+        
+        $.fn.swipeEvents = function() {
       return this.each(function() {
 
         var startX,
@@ -42,15 +42,27 @@
 
         $this.bind('touchstart', touchstart);
 
-        function touchstart(event) {
-          var touches = event.originalEvent.touches;
-          if (touches && touches.length) {
-            startX = touches[0].pageX;
-            startY = touches[0].pageY;
-            $this.bind('touchmove', touchmove);
-          }
-        }
-
+		function touchstart(event) {
+		  var touches = event.originalEvent.touches;
+		  var touchedObject = touches[0].target;
+		  if (touchedObject.nodeName=='A' || touchedObject.nodeName == 'LABEL' || touchedObject.nodeName == 'SPAN'){
+			  $(touchedObject).click();
+			  return 1;
+		  }
+		  if(!(
+				typeof($._data(touchedObject, "events")) !== 'undefined' 
+				&& $._data(touchedObject, "events").click != null
+				|| touchedObject.nodeName == 'A' || touchedObject.nodeName == 'LABEL' || touchedObject.nodeName == 'SPAN'
+			)){
+			startX = touches[0].pageX;
+			startY = touches[0].pageY;
+			$this.bind('touchmove', touchmove);
+		  }
+		   if(!$("body").hasClass("disabled-onepage-scroll")) {
+		  event.preventDefault();
+		  }
+		}
+		
         function touchmove(event) {
           var touches = event.originalEvent.touches;
           if (touches && touches.length) {
@@ -77,7 +89,7 @@
 
       });
     };
-	
+        
 
   $.fn.onepage_scroll = function(options){
     var settings = $.extend({}, defaults, options),
@@ -91,7 +103,7 @@
         paginationList = "";
     
     $.fn.transformPage = function(settings, pos, index) {
-      if (typeof settings.beforeMove == 'function') settings.beforeMove(index);
+      if (typeof settings.beforeMove == 'function') { settings.beforeMove(index); }
       $(this).css({
         "-webkit-transform": "translate3d(0, " + pos + "%, 0)", 
         "-webkit-transition": "all " + settings.animationTime + "ms " + settings.easing,
@@ -103,7 +115,7 @@
         "transition": "all " + settings.animationTime + "ms " + settings.easing
       });
       $(this).one('webkitTransitionEnd otransitionend oTransitionEnd msTransitionEnd transitionend', function(e) {
-        if (typeof settings.afterMove == 'function') settings.afterMove(index);
+        if (typeof settings.afterMove == 'function') { settings.afterMove(index); }
       });
     }
     
@@ -112,33 +124,17 @@
       index = $(settings.sectionContainer +".active").data("index");
       current = $(settings.sectionContainer + "[data-index='" + index + "']");
       next = $(settings.sectionContainer + "[data-index='" + (index + 1) + "']");
-      if(next.length < 1) {
+      
+	  if(next.length < 1) {
         if (settings.loop == true) {
-          pos = 0;
-          next = $(settings.sectionContainer + "[data-index='1']");
+          page_index = 1;
         } else {
-          return
+          return false
         }
-        
-      }else {
-        pos = (index * 100) * -1;
+      } else {
+        page_index = index + 1;
       }
-      if (typeof settings.beforeMove == 'function') settings.beforeMove( next.data("index"));
-      current.removeClass("active")
-      next.addClass("active");
-      if(settings.pagination == true) {
-        $(".onepage-pagination li a" + "[data-index='" + index + "']").removeClass("active");
-        $(".onepage-pagination li a" + "[data-index='" + next.data("index") + "']").addClass("active");
-      }
-      
-      $("body")[0].className = $("body")[0].className.replace(/\bviewing-page-\d.*?\b/g, '');
-      $("body").addClass("viewing-page-"+next.data("index"))
-      
-      if (history.replaceState && settings.updateURL == true) {
-        var href = window.location.href.substr(0,window.location.href.indexOf('#')) + "#" + (index + 1);
-        history.pushState( {}, document.title, href );
-      }   
-      el.transformPage(settings, pos, next.data("index"));
+		el.moveTo(page_index, current);
     }
     
     $.fn.moveUp = function() {
@@ -149,51 +145,40 @@
       
       if(next.length < 1) {
         if (settings.loop == true) {
-          pos = ((total - 1) * 100) * -1;
-          next = $(settings.sectionContainer + "[data-index='"+total+"']");
+          page_index = total;
+        } else {
+          return false
         }
-        else {
-          return
-        }
-      }else {
-        pos = ((next.data("index") - 1) * 100) * -1;
+      } else {
+        page_index = index - 1;
       }
-      if (typeof settings.beforeMove == 'function') settings.beforeMove(next.data("index"));
-      current.removeClass("active")
-      next.addClass("active")
-      if(settings.pagination == true) {
-        $(".onepage-pagination li a" + "[data-index='" + index + "']").removeClass("active");
-        $(".onepage-pagination li a" + "[data-index='" + next.data("index") + "']").addClass("active");
-      }
-      $("body")[0].className = $("body")[0].className.replace(/\bviewing-page-\d.*?\b/g, '');
-      $("body").addClass("viewing-page-"+next.data("index"))
-      
-      if (history.replaceState && settings.updateURL == true) {
-        var href = window.location.href.substr(0,window.location.href.indexOf('#')) + "#" + (index - 1);
-        history.pushState( {}, document.title, href );
-      }
-      el.transformPage(settings, pos, next.data("index"));
+		el.moveTo(page_index, current);
     }
     
-    $.fn.moveTo = function(page_index) {
-      current = $(settings.sectionContainer + ".active")
-      next = $(settings.sectionContainer + "[data-index='" + (page_index) + "']");
+    $.fn.moveTo = function(page_index, current) {
+      if (!current) {
+			current = $(settings.sectionContainer + ".active")
+	  }
+		next = $(settings.sectionContainer + "[data-index='" + (page_index) + "']");
       if(next.length > 0) {
-        if (typeof settings.beforeMove == 'function') settings.beforeMove(next.data("index"));
         current.removeClass("active")
         next.addClass("active")
-        $(".onepage-pagination li a" + ".active").removeClass("active");
-        $(".onepage-pagination li a" + "[data-index='" + (page_index) + "']").addClass("active");
+	      if(settings.pagination == true) {
+			$(".onepage-pagination li a" + ".active").removeClass("active");
+			$(".onepage-pagination li a" + "[data-index='" + (page_index) + "']").addClass("active");
+	      }
         $("body")[0].className = $("body")[0].className.replace(/\bviewing-page-\d.*?\b/g, '');
         $("body").addClass("viewing-page-"+next.data("index"))
         
         pos = ((page_index - 1) * 100) * -1;
-        
-        if (history.replaceState && settings.updateURL == true) {
-            var href = window.location.href.substr(0,window.location.href.indexOf('#')) + "#" + (page_index - 1);
-            history.pushState( {}, document.title, href );
-        }
         el.transformPage(settings, pos, page_index);
+	  }
+	  else return false;
+	  if (settings.updateURL == false) return false;
+
+      if (history.replaceState && settings.updateURL == true) {
+        var href = window.location.href.substr(0,window.location.href.indexOf('#')) + "#" + (page_index);
+        history.pushState( {}, document.title, href );
       }
     }
     
@@ -244,7 +229,6 @@
     }
     
     // Prepare everything before binding wheel scroll
-    
     el.addClass("onepage-wrapper").css("position","relative");
     $.each( sections, function(i) {
       $(this).css({
@@ -300,17 +284,15 @@
     if(settings.pagination == true)  {
       $(".onepage-pagination li a").click(function (){
         var page_index = $(this).data("index");
-        el.moveTo(page_index);
+        return el.moveTo(page_index);
       });
     }
-    
     
     $(document).bind('mousewheel DOMMouseScroll', function(event) {
       event.preventDefault();
       var delta = event.originalEvent.wheelDelta || -event.originalEvent.detail;
       if(!$("body").hasClass("disabled-onepage-scroll")) init_scroll(event, delta);
     });
-    
     
     if(settings.responsiveFallback != false) {
       $(window).resize(function() {
